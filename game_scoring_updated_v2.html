@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hành trình an toàn mạng</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+body { margin:0; font-family:'Poppins', sans-serif; overflow:hidden; background: linear-gradient(#6bd5ff, #b9f1ff); }
+/* Sửa lỗi nền xanh của quiz */
+#quiz {
+    display: none;
+    flex-direction: column;
+    justify-content: center; 
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    background: linear-gradient(#6bd5ff, #b9f1ff); 
+}
+/* Thu nhỏ poster để không bị quá to */
+#poster img {
+    max-width: 90%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+/* INTRO */
+#introContainer,#outroScreen { width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; box-sizing:border-box; }
+#outroScreen { display:none; flex-direction:column; justify-content:center; align-items:center; text-align:center; animation: bgFade 5s ease-in-out infinite; }
+
+#introText { max-width:800px; color:#004760; font-size:20px; line-height:1.6; }
+
+/* Name input */
+#nameBox { display:none; margin-top:20px; text-align:center; }
+#playerName { padding:10px; font-size:18px; border-radius:10px; border:2px solid #5ab4ff; }
+
+/* Hướng dẫn trên tháp */
+#towerGuide { text-align:center; font-size:20px; color:#004b70; margin-top:20px; display:none; }
+
+/* GAME */
+#gameTitle { display:none; text-align:center; margin-top:20px; color:#0077c8; }
+.game-area { display:none; flex-direction:row; justify-content:center; align-items:flex-end; gap: 40px; margin-top: 60px; position:relative; height:400px; }
+.tower { width:120px; height:150px; border-radius:20px 20px 0 0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; cursor:pointer; position:relative; box-shadow:0 8px 20px rgba(0,0,0,0.25); transition:0.3s; }
+.tower:hover { transform: scale(1.05); }
+.roof { width:120px; height:40px; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); margin-bottom:0; box-shadow:0 4px 10px rgba(0,0,0,0.3); }
+
+#tower1 { background:#ffe5b4; } #tower1 .roof { background:#ff7f50; }
+#tower2 { background:#d0f0c0; } #tower2 .roof { background:#32cd32; }
+#tower3 { background:#c0d6f0; } #tower3 .roof { background:#1e90ff; }
+#tower4 { background:#f4c2c2; } #tower4 .roof { background:#ff4500; }
+
+.character { width:50px; height:50px; background:#ffeb3b; border-radius:50%; position:absolute; display:flex; align-items:center; justify-content:center; font-size:24px; z-index:5; transition:0.3s; }
+
+/* POPUP */
+.popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:15px; box-shadow:0 8px 25px rgba(0,0,0,0.35); display:none; z-index:10; width:350px; max-width:90vw; }
+.popup h2 { margin-top:0; color:#0077c8; }
+.popup button { width:100%; padding:12px; background:#00a8ff; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:5px; }
+.popup button:hover { background:#0077c8; }
+
+.tower.level1 { box-shadow:0 0 10px 3px gold; height:200px; }
+.tower.level2 { box-shadow:0 0 15px 5px orange; height:250px; }
+.tower.level3 { box-shadow:0 0 25px 8px red; height:300px; }
+
+/* small styles for video/quiz popups */
+#congratsPopup .line { margin:8px 0; color:#073b4c; }
+#videoPopup video { width:100%; height:auto; border-radius:8px; background:#000; }
+.quiz-answers { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.quiz-answers button, .quiz-answers .submit-btn { width:100%; padding:10px; border-radius:8px; border:none; cursor:pointer; font-weight:600; }
+.checkbox-row { display:flex; flex-direction:column; gap:6px; margin-top:8px; text-align:left; }
+
+/* Gradient animation outro */
+@keyframes bgFade {
+  0% { background: linear-gradient(#6bd5ff, #b9f1ff); }
+  50% { background: linear-gradient(#b9f1ff, #6bd5ff); }
+  100% { background: linear-gradient(#6bd5ff, #b9f1ff); }
+}
+</style>
+
+<style>
+#leaderboard table {
+  border-collapse: collapse;
+  width: 80%;
+  margin: 20px auto;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+#leaderboard th {
+  background: #4aa3ff;
+  color: white;
+  padding: 12px;
+  font-size: 18px;
+}
+#leaderboard td {
+  padding: 10px;
+  text-align: center;
+  font-size: 16px;
+}
+#leaderboard tr:nth-child(even) { background: #f2f7ff; }
+.medal { font-size:22px; }
+</style>
+
+
+<style>
+#top50Btn {
+ position: fixed;
+ top: 10px;
+ right: 10px;
+ padding: 6px 10px;
+ background:#007bff;
+ color:white;
+ border:none;
+ border-radius:8px;
+ font-size:14px;
+ display:none;
+ z-index:9999;
+}
+</style>
+
+
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js">
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js">
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+<script>
+window.correctCount=0; window.wrongCount=0; window.startTime=Date.now();
+  const firebaseConfig = {
+    apiKey: "AIzaSyBp-d-t6eQ0GuXTehgoPD-h99xB1YUg2Lc",
+    authDomain: "an-toan-internet.firebaseapp.com",
+    projectId: "an-toan-internet",
+    storageBucket: "an-toan-internet.firebasestorage.app",
+    messagingSenderId: "32947390990",
+    appId: "1:32947390990:web:71ec5d85e6b0cef78d4a5f",
+    measurementId: "G-X7HLNTRBZG"
+  };
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+</head>
+<body>
+<button id='top50Btn' onclick='showTop50()'>TOP 50</button>
+<!-- QR GAME -->
+<div style="position:fixed; top:1px; right:1px; z-index:9999;">
+  <img src="qr_game_link.png" style="width:60px; height:auto; border-radius:8px;">
+</div>
+
+
+<!-- === NHẠC NỀN === -->
+<audio id="bgMusic" loop>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<!-- === ÂM THANH ĐÚNG – SAI === -->
+<audio id="correctSound">
+  <source src="correct.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="wrongSound">
+  <source src="wrong.mp3" type="audio/mpeg">
+</audio>
+
+<!-- INTRO -->
+<div id="introContainer">
+  <div id="introText"></div>
+  
+<div id="nameBox" style="display:none; margin-top:20px; text-align:center;">
+  <label>Thông tin người chơi:</label><br><br>
+  <input id="playerName" type="text" placeholder="Họ và tên" style="padding:10px;border-radius:10px;margin:5px;"><br>
+  <input id="playerClass" type="text" placeholder="Lớp" style="padding:10px;border-radius:10px;margin:5px;"><br>
+  <input id="playerSchool" type="text" placeholder="Trường" style="padding:10px;border-radius:10px;margin:5px;"><br>
+  <button onclick="startGame()" style="padding:10px 20px;border-radius:10px;">Bắt đầu</button>
+</div>
+
+</div>
+
+<!-- NÚT HIỂN THỊ HƯỚNG DẪN -->
+<div style="text-align:center; margin-top:10px;">
+  <button id="towerGuideBtn" style="padding:10px 16px; background:#00a8ff; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600;" onclick="loadMyRank()">Hướng dẫn Tháp</button>
+</div>
+
+<!-- POPUP HƯỚNG DẪN -->
+<div id="towerGuidePopup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; justify-content:center; align-items:center; padding:20px; display:flex;">
+  <div style="background:#fff; max-width:700px; width:100%; border-radius:12px; padding:20px; box-shadow:0 12px 35px rgba(0,0,0,0.35); overflow:auto; max-height:80vh;">
+    <h2 style="margin-top:0; color:#0077c8;">Hướng dẫn sử dụng — 4 tòa tháp</h2>
+    <p><strong>Mục tiêu:</strong> Trả lời đúng các câu hỏi để nâng cấp 4 tòa tháp lên mức tối đa.</p>
+    <ol style="text-align:left; padding-left:18px;">
+      <li><strong>Nhập tên:</strong> Nhập tên rồi nhấn <em>Bắt đầu</em>.</li>
+      <li><strong>Chọn tòa tháp:</strong> Nhấp vào tòa tháp bạn muốn trả lời.</li>
+      <li><strong>Trả lời 1 câu:</strong> Mỗi tháp chỉ có 1 câu hỏi, chọn 1 trong 3 đáp án.</li>
+      <li><strong>Nâng cấp :</strong> Nếu đúng, tháp sẽ đạt mức tối đa ngay.</li>
+      <li><strong>Thử lại khi sai:</strong> Nếu sai, có thông báo, bạn có thể thử lại.</li>
+      <li><strong>Hoàn thành trò chơi:</strong> Khi cả 4 tháp đều đạt mức tối đa, màn khác sẽ xuất hiện.</li>
+    </ol>
+    <p style="font-size:13px; color:#555; margin-top:10px;">Bạn có thể làm tháp theo bất kỳ thứ tự nào. Trò chơi sẽ đếm thời gian bạn chơi khi bạn nhấn bắt đầu.</p>
+    <div style="text-align:right; margin-top:12px;">
+      <button style="padding:10px 16px; background:#ff6b6b; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:600;" onclick="closeTowerGuide()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hướng dẫn trên tháp -->
+<div id="towerGuide" style="display:none;">
+  Chọn vào mỗi tòa tháp — mỗi tòa tượng trưng cho một tài khoản của Minh. Nhấp vào tháp để đặt mật khẩu mạnh!
+</div>
+
+<!-- GAME -->
+<h1 id="gameTitle">Mini Game: Chọn mật khẩu mạnh để nâng cấp tháp</h1>
+<div class="game-area" id="gameArea">
+  <div class="tower" id="tower1"><div class="roof"></div></div>
+  <div class="tower" id="tower2"><div class="roof"></div></div>
+  <div class="tower" id="tower3"><div class="roof"></div></div>
+  <div class="tower" id="tower4"><div class="roof"></div></div>
+  <div class="character" id="character">😊</div>
+</div>
+
+<!-- POPUP -->
+<div class="popup" id="popup">
+  <h2 id="questionTitle">Chọn mật khẩu</h2>
+  <div id="answers"></div>
+</div>
+
+<!-- POPUP CUỐI THÁP -->
+<div class="popup" id="finalPopup">
+  <h2>Chúc mừng!</h2>
+  <p>Bạn đã giúp Minh đặt mật khẩu mạnh, nhưng để sau này Minh không đặt mật khẩu yếu nữa, bạn nên cho Minh 1 số lời khuyên.</p>
+  <button id="nextGameBtn">Được thôi</button>
+</div>
+
+<!-- POPUP LỜI KHUYÊN -->
+<div class="popup" id="advicePopup">
+  <h2 id="adviceQuestion">Câu hỏi</h2>
+  <div id="adviceAnswers"></div>
+</div>
+
+<!-- OUTRO -->
+<div id="outroScreen">
+  <h1 id="outroTitle" style="opacity:0; transition:opacity 1s;">Thank for playing!</h1>
+  <p id="outroText" style="opacity:0; transition:opacity 1s;">Bạn đã hoàn thành trò chơi.Hãy chia sẻ cho bạn bè cùng chơi nhé.Hẹn gặp lại!Game được tạo bởi Hưng và Quân.</p>
+  <div id="outroCharacter" style="width:80px; height:80px; background:#ffeb3b; border-radius:50%; margin-top:30px; display:flex; justify-content:center; align-items:center; font-size:36px; opacity:0; transition:opacity 1s;">😊</div>
+</div>
+
+<!-- ======= NEW: CONGRATS + VIDEO + QUIZ POPUPS (THÊM MỚI, KHÔNG SỬA GAME) ======= -->
+
+<!-- Congratulation popup (shown when showOutro is called) -->
+<div class="popup" id="congratsPopup" style="display:none; width:420px;">
+  <h2>Chúc mừng — Bạn đã hoàn thành trò chơi!</h2>
+  <p class="line">Bạn đã giúp Minh cải thiện bảo mật. Xem video ngắn để hiểu thêm tình huống lừa đảo.</p>
+  <button id="watchVideoBtn">Xem video hướng dẫn</button>
+  <button id="skipToQuizBtn" style="background:#ff6b6b; margin-top:8px;">Bỏ qua video — Trả lời câu hỏi</button>
+</div>
+
+<!-- Video popup -->
+<div class="popup" id="videoPopup" style="display:none; width:760px; max-width:95vw;">
+  <h2>Video minh họa tình huống lừa đảo</h2>
+  <video id="lessonVideo" controls>
+    <source src="video.mp4" type="video/mp4">
+    Trình duyệt của bạn không hỗ trợ thẻ video.
+  </video>
+  <button id="skipVideoBtn" style="margin-top:10px; background:#ff6b6b;">Bỏ qua video</button>
+</div>
+
+<!-- Quiz popup (4 câu hỏi) -->
+<div class="popup" id="quizPopup" style="display:none; width:600px; max-width:95vw;">
+  <h2 id="quizTitle">Bài kiểm tra nhanh</h2>
+  <div id="quizBody" style="margin-top:8px; text-align:left;">
+    <!-- Nội dung câu hỏi sẽ được chèn bằng JS -->
+  </div>
+  <div style="margin-top:12px;">
+    <button id="nextQuizBtn" style="background:#00a8ff;">Tiếp tục</button>
+  </div>
+</div>
+<div id="activity3Screen" style="display:none; flex-direction:column; justify-content:center; align-items:center; height:100vh; padding:20px; text-align:center; background:#87CEFA;">
+  <h1>Hoạt động 3</h1>
+  <p style="font-size:20px; color:#0077c8; margin-bottom:15px;">
+    Lan đang làm poster tuyên truyền an toàn mạng nhưng bạn ấy chỉ mới xong phần trình bày, bạn hãy giúp bạn ấy phần nội dung nhé.
+  </p>
+  <button id="startQuizBtn" style="margin-top:20px; padding:10px 16px; background:#00a8ff; color:#fff; border:none; border-radius:8px; cursor:pointer;">OK</button>
+</div>
+
+<div id="quiz" style="display:none; flex-direction:column; align-items:center; gap:12px; margin-top:20px;">
+  <div id="question" style="font-size:20px; font-weight:600;"></div>
+  <div id="options" style="display:flex; flex-direction:column; gap:10px;"></div>
+</div>
+
+<div id="poster" style="display:none; margin-top:20px; font-size:18px;">
+  <img src="posternhé.png" alt="Poster" style="max-width:90%; border-radius:12px;">
+</div>
+<!-- ========================================================================== -->
+
+<script>
+// --- INTRO ---
+const introLines=["Bạn là 1 nhà thám hiểm internet...","Trong lúc thám hiểm bạn gặp Minh – 1 người đang bị những tên hacker đánh cắp thông tin...","Nhiệm vụ của bạn là giúp Minh đặt lại mật khẩu!"];
+let lineIndex=0,charIndex=0;
+const introText=document.getElementById("introText");
+const nameBoxEl=document.getElementById("nameBox");
+
+function typeIntro(){
+  introText.innerHTML = ""; 
+  lineIndex=0; charIndex=0;
+
+  function typing(){
+    if(lineIndex<introLines.length){
+      if(charIndex<introLines[lineIndex].length){
+        introText.innerHTML+=introLines[lineIndex].charAt(charIndex);
+        charIndex++;
+        setTimeout(typing,40);
+      } else {
+        introText.innerHTML+="<br><br>";
+        lineIndex++; charIndex=0;
+        setTimeout(typing,500);
+      }
+    } else {
+      nameBoxEl.style.display="block";
+    }
+  }
+
+  typing();
+}
+
+// KHÔNG CHẠY INTRO KHI LOAD TRANG NỮA
+// window.onload = typeIntro;
+
+// --- NHẠC ---
+const bgMusic=document.getElementById("bgMusic");
+const correctSound=document.getElementById("correctSound");
+const wrongSound=document.getElementById("wrongSound");
+let bgStart=false;
+
+document.addEventListener("click",()=>{
+  if(!bgStart){
+    bgMusic.volume=0.5;
+    bgMusic.play().catch(()=>{});
+    bgStart=true;
+  }
+});
+
+// --- GAME DATA ---
+const towersData = {
+  tower1: [{question: "Chọn mật khẩu mạnh.", answers: [{ text: "12345", correct: false },{ text: "Huy3#2025", correct: true },{ text: "abcdef", correct: false }]}],
+  tower2: [{question: "Chọn mật khẩu có số và chữ viết hoa.", answers: [{ text: "Pass1234", correct: true },{ text: "abcdefg", correct: false },{ text: "Password", correct: false }]}],
+  tower3: [{question: "Chọn mật khẩu có chữ hoa, chữ thường,số và ký tự đặc biệt.", answers: [{ text: "ABCDEFG", correct: false },{ text: "1234567", correct: false },{ text: "Hoctap@1235", correct: true }]}],
+  tower4: [{question: "Chọn mật khẩu đủ 8 ký tự trở lên.", answers: [{ text: "12a424a", correct: false },{ text: "SafePassw1", correct: true },{ text: "chamchi@!", correct: false }]}]
+};
+
+const towers=document.querySelectorAll('.tower');
+const popup=document.getElementById('popup');
+const questionTitle=document.getElementById('questionTitle');
+const answersDiv=document.getElementById('answers');
+const character=document.getElementById('character');
+const gameArea=document.getElementById('gameArea');
+const gameTitle=document.getElementById('gameTitle');
+const towerGuide=document.getElementById('towerGuide');
+const finalPopup=document.getElementById('finalPopup');
+const advicePopup=document.getElementById('advicePopup');
+const adviceQuestionEl=document.getElementById('adviceQuestion');
+const adviceAnswersDiv=document.getElementById('adviceAnswers');
+const outroScreen=document.getElementById('outroScreen');
+const outroChar=document.getElementById('outroCharacter');
+
+let currentTower=null;
+let currentLevel={tower1:0,tower2:0,tower3:0,tower4:0};
+
+function startGame(){
+  let name = document.getElementById('playerName').value.trim();
+  let cls = document.getElementById('playerClass').value.trim();
+  let school = document.getElementById('playerSchool').value.trim();
+  if(!name || !cls || !school){ alert("Vui lòng nhập đầy đủ tên, lớp, trường!"); return;}
+  const nameInput=document.getElementById('playerName').value;
+  document.getElementById('introContainer').style.display="none";
+  towerGuide.style.display="block";
+  gameTitle.style.display="block";
+  gameArea.style.display="flex";
+}
+
+towers.forEach(tower=>{
+  tower.addEventListener('click',()=>{
+    currentTower=tower.id;
+    const rect=tower.getBoundingClientRect();
+    const areaRect=gameArea.getBoundingClientRect();
+    const x=rect.left-areaRect.left+rect.width/2-character.offsetWidth/2;
+    const y=-character.offsetHeight;
+    character.style.left=x+'px';
+    character.style.top=y+'px';
+    showTowerQuestion(currentTower);
+  });
+});
+
+function showTowerQuestion(towerId){
+  const level=currentLevel[towerId];
+  if(level>=1){ checkAllTowersCompleted(); return; }
+  const q=towersData[towerId][0];
+  questionTitle.textContent=q.question;
+  answersDiv.innerHTML="";
+  q.answers.forEach(ans=>{
+    const btn=document.createElement('button');
+    btn.textContent=ans.text;
+    btn.onclick=()=>checkTowerAnswer(ans.correct);
+    answersDiv.appendChild(btn);
+  });
+  popup.style.display='block';
+}
+
+function checkTowerAnswer(isCorrect){
+  if(isCorrect){
+    correctSound.currentTime=0; correctSound.play();
+    alert("Chọn đúng! Tháp được nâng cấp 🎉");
+    const towerEl=document.getElementById(currentTower);
+    currentLevel[currentTower]=3;
+    towerEl.classList.add("level3");
+  } else { wrongSound.currentTime=0; wrongSound.play(); alert("Mật khẩu yếu, thử lại 😢"); }
+  popup.style.display='none';
+  checkAllTowersCompleted();
+}
+
+function checkAllTowersCompleted(){
+  const allDone=Object.values(currentLevel).every(l=>l>=1);
+  if(allDone){ finalPopup.style.display='block'; }
+  
+}
+
+
+document.getElementById('nextGameBtn').onclick=()=>{ finalPopup.style.display='none'; showAdviceGame(); };
+
+// ---- GAME LỜI KHUYÊN ----
+const adviceQuestions=[
+  {q:"Khi đặt mật khẩu, bạn cần ___ để bảo mật tốt hơn.",answers:[
+    {text:"sử dụng chữ hoa, chữ thường, số và ký tự đặc biệt",correct:true},
+    {text:"chỉ dùng số",correct:false},
+    {text:"dùng tên mình",correct:false}]},
+  {q:"Mật khẩu nên có ít nhất ___ ký tự.",answers:[
+    {text:"4 ký tự",correct:false},
+    {text:"8 ký tự",correct:true},
+    {text:"2 ký tự",correct:false}]},
+  {q:"Không nên sử dụng ___ trong mật khẩu.",answers:[
+    {text:"tên người thân hoặc ngày sinh",correct:true},
+    {text:"ký tự đặc biệt",correct:false},
+    {text:"chữ và số",correct:false}]},
+  {q:"Nên thay đổi mật khẩu ___ để tránh bị hack.",answers:[
+    {text:"không bao giờ",correct:false},
+    {text:"thường xuyên",correct:true},
+    {text:"chỉ khi bị quên",correct:false}]},
+  {q:"Không nên sử dụng ___ giống nhau cho nhiều tài khoản.",answers:[
+    {text:"mật khẩu",correct:true},
+    {text:"email",correct:false},
+    {text:"tên đăng nhập",correct:false}]}];
+
+let adviceIndex=0;
+function showAdviceGame(){ adviceIndex=0; showAdviceQuestion(); }
+function showAdviceQuestion(){
+  if(adviceIndex>=adviceQuestions.length){ advicePopup.style.display='none'; showOutro(); return; }
+  const q=adviceQuestions[adviceIndex];
+  adviceQuestionEl.textContent=q.q;
+  adviceAnswersDiv.innerHTML="";
+  q.answers.forEach(ans=>{
+    const btn=document.createElement('button');
+    btn.textContent=ans.text;
+    btn.onclick=()=>{
+      if(ans.correct){ correctSound.currentTime=0; correctSound.play(); alert("Chọn đúng! 🎉"); adviceIndex++; }
+      else{ wrongSound.currentTime=0; wrongSound.play(); alert("Sai, thử lại 😢"); }
+      showAdviceQuestion();
+    };
+    adviceAnswersDiv.appendChild(btn);
+  });
+  advicePopup.style.display='block';
+  
+  }
+  function startActivity3(){
+  // Ẩn các màn hình khác
+  gameArea.style.display='none';
+  quizPopup.style.display='none';
+  congratsPopup.style.display='none';
+  videoPopup.style.display='none';
+  outroScreen.style.display='none';
+  
+  // Hiển thị màn hình Hoạt động 3
+  document.getElementById('activity3Screen').style.display='flex';
+  
+  // Nút tiếp tục để qua outro
+  document.getElementById('activity3NextBtn').onclick = () => {
+    document.getElementById('activity3Screen').style.display='none';
+    // Gọi outro gốc
+    if(typeof originalShowOutro === 'function') originalShowOutro();
+    else document.getElementById('outroScreen').style.display='flex';
+  };
+}
+
+// Sửa finishQuizFlow để gọi startActivity3 trước outro
+function finishQuizFlow(){
+  quizPopup.style.display = 'none';
+  congratsPopup.style.display = 'none';
+  videoPopup.style.display = 'none';
+  
+  // Gọi Hoạt động 3 trước outro
+  startActivity3();
+}
+
+// --- OUTRO ---
+function showOutro(){
+    window.endTime = Date.now();
+    window.totalTime = Math.floor((window.endTime - window.startTime)/1000);
+    if(window.correctAnswers!==undefined){ window.playerScore = window.correctAnswers - window.totalTime; }
+ document.getElementById("top50Btn").style.display="block";
+ const score=computeScore(window.correctAnswers||0, window.totalTime||0); window.playerScore=score;
+  // rename button
+  document.getElementById("towerGuideBtn").innerText = "Bảng xếp hạng";
+
+  setTimeout(()=>{ 
+    if(document.getElementById('leaderboard')) {
+      document.getElementById('leaderboard').style.display='block';
+      if(window.loadLeaderboard) loadLeaderboard();
+    }
+  }, 2500);  // show after outro animation
+
+  advicePopup.style.display='none';
+  gameArea.style.display='none';
+  gameTitle.style.display='none';
+  towerGuide.style.display='none';
+  outroScreen.style.display='flex';
+  setTimeout(()=>document.getElementById('outroTitle').style.opacity=1,100);
+  setTimeout(()=>document.getElementById('outroText').style.opacity=1,1100);
+  setTimeout(()=>outroChar.style.opacity=1,2100);
+}
+
+// --- HƯỚNG DẪN THÁP ---
+function openTowerGuide(){
+  document.getElementById('towerGuidePopup').style.display='flex';
+}
+
+function closeTowerGuide(){
+  document.getElementById('towerGuidePopup').style.display='none';
+  typeIntro();  // << BẮT ĐẦU INTRO SAU KHI ẤN ĐÓNG
+}
+
+// Hide poster when story shown
+document.getElementById('storyOverlay').addEventListener('transitionstart',()=>{
+  try{ document.getElementById('poster').style.display='none'; }catch(e){}
+});
+
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+<!-- ======= APPENDED SCRIPT: chúc mừng → video → quiz (KHÔNG SỬA GAME) ======= -->
+<script>
+/*
+  LƯU Ý: đoạn này chỉ "thêm" chức năng mới.
+  - Khi hàm showOutro() được gọi, nó sẽ hiển thị popup chúc mừng (mình ghi đè hàm runtime).
+  - Sau khi hoàn tất quiz, hàm showOutro gốc sẽ được gọi để hiển thị outro ban đầu.
+*/
+
+// Lưu hàm showOutro gốc
+const originalShowOutro = window.showOutro;
+
+// Nếu không tồn tại hàm gốc (trường hợp), đảm bảo originalShowOutro là null
+// (trong file gốc, showOutro luôn được định nghĩa nên originalShowOutro sẽ là function)
+if (typeof originalShowOutro !== 'function') {
+  // không có hàm gốc — define 1 hàm mặc định an toàn
+  window.showOutro = function(){
+    document.getElementById('outroScreen').style.display='flex';
+  };
+} else {
+  // GHI ĐÈ showOutro bằng 1 hàm mới, nhưng sẽ gọi originalShowOutro sau khi quiz xong
+  window.showOutro = function(){
+    // Hiện popup chúc mừng (mới)
+    document.getElementById('congratsPopup').style.display = 'block';
+  };
+}
+
+// DOM elements for new flow
+const congratsPopup = document.getElementById('congratsPopup');
+const watchVideoBtn = document.getElementById('watchVideoBtn');
+const skipToQuizBtn = document.getElementById('skipToQuizBtn');
+const videoPopup = document.getElementById('videoPopup');
+const lessonVideo = document.getElementById('lessonVideo');
+const skipVideoBtn = document.getElementById('skipVideoBtn');
+const quizPopup = document.getElementById('quizPopup');
+const quizBody = document.getElementById('quizBody');
+const nextQuizBtn = document.getElementById('nextQuizBtn');
+
+// Định nghĩa nội dung 4 câu hỏi theo yêu cầu (một số câu cho phép nhiều đáp án)
+const finalQuiz = [
+  {
+    id: 1,
+    type: 'single', // single-choice
+    q: 'Câu 1: Đâu "KHÔNG" phải là nguyên nhân khiến Minh bị lừa đảo qua mạng?',
+    options: [
+      'Tin tưởng vào bạn bè',
+      'Hấp tấp, thiếu suy nghĩ',
+      'Vì nhà Minh giàu'
+    ],
+    correctIndex: 2 // "Vì nhà Minh giàu" là đáp án đúng (không phải nguyên nhân)
+  },
+  {
+    id: 2,
+    type: 'multi', // multiple-choice (chọn tất cả thủ đoạn đã dùng)
+    q: 'Câu 2: Đối tượng lừa đảo đã sử dụng những thủ đoạn nào để khiến nhân vật tin là thật? (Chọn những câu đúng)',
+    options: [
+      'A. Giả mạo tài khoản bạn bè và nhắn tin với giọng điệu quen thuộc.',
+      'B. Tiếp cận nạn nhân làm quen và dần dần trở thành bạn bè để lừa đảo',
+      'C. Hối thúc nhân vật thực hiện nhanh để “không bỏ lỡ cơ hội”.'
+    ],
+    // Trong tình huống mô tả, cả A, B, C đều là thủ đoạn được sử dụng → nên tất cả đều đúng
+    correctIndexes: [0,1,2]
+  },
+  {
+    id: 3,
+    type: 'multi',
+    q: 'Câu 3: Sau khi bị lừa đảo, nhân vật đã gặp phải hậu quả gì? (Chọn những câu đúng)',
+    options: [
+      'Mất tiền',
+      'Lộ thông tin cá nhân, tài khoản mạng xã hội bị chiếm quyền.',
+      'Bị đe dọa, làm phiền hoặc tiếp tục bị nhắn tin lừa đảo.'
+    ],
+    // Tất cả đều là hậu quả khả dĩ → coi cả 3 là đúng
+    correctIndexes: [0,1,2]
+  },
+  {
+    id: 4,
+    type: 'multi',
+    q: 'Câu 4: Thông điệp của đoạn video trên là gì? (Chọn tất cả câu đúng)',
+    options: [
+      'Không nên tin tưởng tuyệt đối vào bất kỳ ai trên mạng, kể cả người quen.',
+      'Internet luôn an toàn nên có thể thoải mái chia sẻ thông tin cá nhân',
+      'Cảnh giác với đường link, quà tặng, ưu đãi được gửi đột ngột.'
+    ],
+    // Đáp án đúng: 1 và 3 (khuyến cáo cảnh giác; câu 2 sai)
+    correctIndexes: [0,2]
+  }
+];
+
+let quizIndex = 0;
+
+// Hàm hiển thị câu hỏi quiz hiện tại
+function renderQuizQuestion(){
+  const item = finalQuiz[quizIndex];
+  quizBody.innerHTML = '';
+  const title = document.createElement('div');
+  title.style.fontWeight = '700';
+  title.style.marginBottom = '8px';
+  title.textContent = item.q;
+  quizBody.appendChild(title);
+
+  if(item.type === 'single'){
+    const wrap = document.createElement('div');
+    wrap.className = 'quiz-answers';
+    item.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.onclick = () => {
+        // kiểm tra
+        if(i === item.correctIndex){
+          correctSound.currentTime = 0; correctSound.play();
+          alert('Chính xác! 🎉');
+          quizIndex++;
+          if(quizIndex >= finalQuiz.length){
+            finishQuizFlow();
+          } else {
+            renderQuizQuestion();
+          }
+        } else {
+          wrongSound.currentTime = 0; wrongSound.play();
+          alert('Sai rồi, thử lại nhé 😢');
+        }
+      };
+      wrap.appendChild(btn);
+    });
+    quizBody.appendChild(wrap);
+    // nút next ẩn với câu single (bấm đáp án sẽ tự chuyển)
+    nextQuizBtn.style.display = 'none';
+  } else if(item.type === 'multi'){
+    // hiển thị checkbox + nút submit
+    const box = document.createElement('div');
+    box.className = 'checkbox-row';
+    item.options.forEach((opt, i) => {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.idx = i;
+      cb.style.marginRight = '8px';
+      label.appendChild(cb);
+      const span = document.createElement('span');
+      span.textContent = opt;
+      label.appendChild(span);
+      box.appendChild(label);
+    });
+    quizBody.appendChild(box);
+
+    // show submit button
+    nextQuizBtn.style.display = 'inline-block';
+    nextQuizBtn.textContent = 'Nộp đáp án';
+    // đảm bảo listener không bị đăng ký nhiều lần
+    nextQuizBtn.onclick = () => {
+      const checked = Array.from(box.querySelectorAll('input[type="checkbox"]:checked')).map(n=>parseInt(n.dataset.idx));
+      // sort for comparison
+      checked.sort((a,b)=>a-b);
+      const correct = item.correctIndexes.slice().sort((a,b)=>a-b);
+      // compare arrays
+      if(checked.length === correct.length && checked.every((v,i)=>v === correct[i])){
+        correctSound.currentTime = 0; correctSound.play();
+        alert('Chính xác! 🎉');
+        quizIndex++;
+        if(quizIndex >= finalQuiz.length){
+          finishQuizFlow();
+        } else {
+          renderQuizQuestion();
+        }
+      } else {
+        wrongSound.currentTime = 0; wrongSound.play();
+        alert('Chưa chính xác. Hãy kiểm tra lại và thử lại nhé 😢');
+      }
+    };
+  }
+}
+
+// Hoàn tất quiz → gọi outro gốc để hiển thị màn outro cũ
+function startActivity3(){
+  // Ẩn các màn hình khác
+  gameArea.style.display='none';
+  quizPopup.style.display='none';
+  congratsPopup.style.display='none';
+  videoPopup.style.display='none';
+  outroScreen.style.display='none';
+  
+  // Hiển thị màn hình Hoạt động 3
+  document.getElementById('activity3Screen').style.display='flex';
+  
+  // Nút tiếp tục để qua outro
+  document.getElementById('activity3NextBtn').onclick = () => {
+    document.getElementById('activity3Screen').style.display='none';
+    // Gọi outro gốc
+    if(typeof originalShowOutro === 'function') originalShowOutro();
+    else document.getElementById('outroScreen').style.display='flex';
+  };
+}
+
+// Sửa finishQuizFlow để gọi startActivity3 trước outro
+function finishQuizFlow(){
+  quizPopup.style.display = 'none';
+  congratsPopup.style.display = 'none';
+  videoPopup.style.display = 'none';
+  
+  // Gọi Hoạt động 3 trước outro
+  startActivity3();
+}
+
+
+const quizData = [
+  { question: "Bạn nên làm gì để bảo vệ mật khẩu tài khoản của mình?", options: ["Dùng ngày sinh", "Tạo mật khẩu mạnh và không chia sẻ", "Viết ra giấy", "Dùng 1 mật khẩu cho tất cả"], answer: 1 },
+  { question: "Khi sử dụng nền tảng trực tuyến, bạn nên làm gì để bảo vệ quyền riêng tư?", options: ["Không đọc chính sách", "Chia sẻ thông tin cá nhân", "Kiểm tra chính sách và điều chỉnh cài đặt", "Chỉ đăng thông tin công ty"], answer: 2 },
+  { question: "Khi nhận được đường link lạ, bạn nên làm gì?", options: ["Nhấn ngay", "Chia sẻ cho bạn bè", "Không nhấp và kiểm tra nguồn gửi", "Sao chép vào MXH hỏi ý kiến"], answer: 2 },
+  { question: "Trước khi đăng bất cứ nội dung nào lên mạng, bạn cần chú ý điều gì?", options: ["Nội dung hài hước", "Nội dung an toàn, phù hợp, không gây hại", "Có nhiều lượt like", "Trùng bài người khác"], answer: 1 }
+];
+
+let current = 0;
+
+function showQuestion() {
+  if(current >= quizData.length){
+    document.getElementById("quiz").style.display = "none";
+    document.getElementById("poster").style.display = "block"; // hiện poster
+    return;
+  }
+
+  const q = quizData[current];
+  document.getElementById("question").innerText = q.question;
+  const optionsDiv = document.getElementById("options");
+  optionsDiv.innerHTML = "";
+
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.innerText = opt;
+    btn.style.padding = "10px 16px";
+    btn.style.borderRadius = "8px";
+    btn.style.border = "none";
+    btn.style.cursor = "pointer";
+    btn.style.background = "#00a8ff";
+    btn.style.color = "#fff";
+    btn.style.fontWeight = "600";
+    btn.style.margin = "5px";
+    btn.onclick = () => checkAnswer(i);
+    optionsDiv.appendChild(btn);
+  });
+}
+
+function checkAnswer(selected){
+  if(selected === quizData[current].answer){
+
+    // 🔊Âm thanh đúng
+    correctSound.currentTime = 0;
+    correctSound.play();
+
+    current++;
+    showQuestion();
+
+  } else {
+
+    // 🔊Âm thanh sai
+    wrongSound.currentTime = 0;
+    wrongSound.play();
+
+    alert("Sai rồi, thử lại nhé!");
+  }
+}
+
+// Khi bắt đầu hoạt động 3
+function startActivity3(){
+  document.getElementById('activity3Screen').style.display='flex';
+  current = 0;
+  document.getElementById("quiz").style.display = "flex";
+  document.getElementById("poster").style.display = "none";
+  showQuestion();
+}
+
+// Bắt đầu quiz
+showQuestion();
+
+// Sự kiện cho nút trên popup chúc mừng
+watchVideoBtn.onclick = () => {
+  congratsPopup.style.display = 'none';
+  // show video popup
+  videoPopup.style.display = 'block';
+  // reset video to start
+  try { lessonVideo.currentTime = 0; } catch(e){}
+  lessonVideo.play().catch(()=>{});
+};
+
+skipToQuizBtn.onclick = () => {
+  congratsPopup.style.display = 'none';
+  // Bắt đầu quiz trực tiếp
+  quizIndex = 0;
+  quizPopup.style.display = 'block';
+  renderQuizQuestion();
+};
+
+// Sự kiện cho nút bỏ qua video
+skipVideoBtn.onclick = () => {
+  try { lessonVideo.pause(); } catch(e){}
+  videoPopup.style.display = 'none';
+  quizIndex = 0;
+  quizPopup.style.display = 'block';
+  renderQuizQuestion();
+};
+
+// Khi video kết thúc → bắt đầu quiz
+lessonVideo.onended = () => {
+  videoPopup.style.display = 'none';
+  quizIndex = 0;
+  quizPopup.style.display = 'block';
+  renderQuizQuestion();
+};
+
+// Đóng tất cả popup khi nhấn ra ngoài (tuỳ chọn) — không bắt buộc
+// (Không gắn sự kiện đóng khi bấm ngoài để tránh vô tình đóng)
+
+// === TẠM DỪNG NHẠC NỀN KHI XEM VIDEO ===
+(function(){
+  try {
+    const bgMusicEl = document.getElementById('bgMusic');
+    const lessonVideoEl = document.getElementById('lessonVideo');
+    const skipVideoBtnEl = document.getElementById('skipVideoBtn');
+
+    if(!bgMusicEl || !lessonVideoEl || !skipVideoBtnEl) return;
+
+    // Khi video bắt đầu phát → tạm dừng nhạc nền
+    lessonVideoEl.addEventListener('play', () => {
+      try { bgMusicEl.pause(); } catch(e){}
+    });
+
+    // Khi video kết thúc → tiếp tục nhạc nền
+    lessonVideoEl.addEventListener('ended', () => {
+      try { bgMusicEl.play().catch(()=>{}); } catch(e){}
+    });
+
+    // Khi người bấm "Bỏ qua video" → tiếp tục nhạc nền
+    skipVideoBtnEl.addEventListener('click', () => {
+      try { bgMusicEl.play().catch(()=>{}); } catch(e){}
+    });
+
+  } catch(e){}
+})();
+function startActivity3() {
+    // Ẩn TẤT CẢ các màn hình cũ trước khi vào hoạt động 3
+    gameArea.style.display = 'none';
+    gameTitle.style.display = 'none';
+    towerGuide.style.display = 'none';
+    finalPopup.style.display = 'none';
+    popup.style.display = 'none';
+    advicePopup.style.display = 'none';
+    congratsPopup.style.display = 'none';
+    videoPopup.style.display = 'none';
+    quizPopup.style.display = 'none';
+    outroScreen.style.display = 'none';
+
+    // Hiện màn hình Hoạt động 3
+    document.getElementById('activity3Screen').style.display = 'flex';
+
+    // Reset quiz con
+    current = 0;
+    document.getElementById("quiz").style.display = "none";
+    document.getElementById("poster").style.display = "none";
+}
+
+function endActivity3(){
+  // Ẩn Hoạt động 3
+  document.getElementById('activity3Screen').style.display = 'none';
+  // Tiếp tục outro gốc
+  showOutro();
+}
+// Gắn sự kiện cho nút OK
+document.getElementById('startQuizBtn').onclick = () => {
+    window.startTime = Date.now();
+    // Ẩn màn hình hoạt động 3
+    document.getElementById('activity3Screen').style.display = 'none';
+    // Bắt đầu quiz hoặc outro tiếp theo
+    current = 0;
+    document.getElementById("quiz").style.display = "flex";
+    document.getElementById("poster").style.display = "none";
+    showQuestion(); // gọi hàm hiển thị câu hỏi đầu tiên
+};
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<!-- BEGIN: Poster congrats + story + super-quiz (added by assistant) -->
+<style>
+/* Poster congrats popup */
+#posterCongratsOverlay, #confirmStoryOverlay, #storyOverlay, #superQuizPopup, #superQuizEnd {
+  position: fixed; inset: 0; display: none; z-index: 9999; justify-content:center; align-items:center; background: rgba(0,0,0,0.6);
+}
+#posterCongrats, #confirmStory, #storyBox, #superQuizBox, #superQuizEndBox {
+  background: #fff; border-radius:12px; padding:18px; max-width:900px; width:90%; box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+}
+#posterCongrats .content { display:flex; gap:16px; align-items:center; }
+#posterCongrats .left { flex: 0 0 40%; }
+#posterCongrats .left img{ width:100%; height:auto; border-radius:8px; }
+#posterCongrats .right { flex:1; text-align:left; }
+#posterCongrats h2 { margin-top:0; color:#0077c8; }
+.smallBtn { padding:10px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:600; background:#00a8ff; color:#fff; }
+.ghostBtn { background:#ff6b6b; }
+.storyText { max-height:360px; overflow:auto; text-align:left; line-height:1.5; color:#073b4c; }
+#superQuizBox .q { font-weight:700; margin-bottom:10px; }
+#superQuizBox .options button { display:block; width:100%; margin:8px 0; padding:10px; border-radius:8px; border:none; cursor:pointer; background:#00a8ff; color:#fff; font-weight:600; }
+#superQuizEndBox .animatedText { font-size:20px; line-height:1.6; text-align:center; padding:20px; }
+</style>
+
+<!-- Poster congrats overlay -->
+<div id="posterCongratsOverlay" aria-hidden="true">
+  <div id="posterCongrats" role="dialog">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h2>Chúc mừng — Bạn đã hoàn thành poster giúp Lan!</h2>
+      <button onclick="closePosterCongrats()" style="background:transparent;border:none;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div class="content" style="margin-top:10px;">
+      <div class="left"><img src="posternhé.png" alt="Poster"></div>
+      <div class="right">
+        <p>Bạn đã hoàn thành poster giúp Lan. Hãy nhấn tiếp tục để nghe một câu chuyện dựa trên một câu chuyện có thật giúp hiểu thêm về cách kẻ gian lợi dụng chị A.</p>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="smallBtn" id="pcContinueBtn">Tiếp tục</button>
+          <button class="smallBtn ghostBtn" onclick="closePosterCongrats()">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm to view story -->
+<div id="confirmStoryOverlay" aria-hidden="true">
+  <div id="confirmStory">
+    <h2>Bạn có muốn nghe chuyện của chị A (dựa trên câu chuyện có thật)?</h2>
+    <p style="color:#333;">Nghe câu chuyện sẽ giúp bạn hiểu rõ cách lừa đảo vận hành. Bạn có thể <strong>Bỏ qua</strong> và trả lời câu hỏi ngay.</p>
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      <button class="smallBtn" id="agreeStoryBtn">Đồng ý — Nghe chuyện</button>
+      <button class="smallBtn ghostBtn" id="skipStoryBtn">Bỏ qua — Trả lời câu hỏi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Story overlay -->
+<div id="storyOverlay" aria-hidden="true">
+  <div id="storyBox">
+    <h2>Chuyện của chị A</h2>
+    <div class="storyText" id="storyText">
+      <p>Chị A làm việc trong một cửa hàng nhỏ. Một buổi chiều, chị nhận được cuộc gọi từ một người tự xưng là shipper. Anh ta nói rằng đang giữ một món hàng gửi cho chị, nhưng chị A bảo rằng mình không hề đặt hàng.</p>
+      <p>Bạn đọc tiếp dưới...</p>
+      <p>Ban đầu, chị A rất tỉnh táo và trả lời rõ ràng: “Tôi không đặt gì cả, anh giao nhầm rồi.” Shipper vẫn khăng khăng rằng đây là hàng “đặt trước”, yêu cầu chị phải ra nhận để kiểm tra. Chị A từ chối thêm vài lần nhưng anh ta liên tục gọi lại, giọng ngày càng gấp gáp và khó chịu.</p>
+      <p>Một lúc sau, shipper hỏi một câu khiến chị bắt đầu lo lắng: “Chị có biết trong kiện này có hàng cấm không? Chị không ký nhận là chị chịu trách nhiệm đó.” Chị A bối rối. Trong đầu chị chỉ còn lại một suy nghĩ: “Nếu thật là hàng cấm thì sao? Mình không nhận thì có bị nghi oan không?” Dù trước đó rất tỉnh, chị bắt đầu sợ. Anh shipper lợi dụng cảm giác ấy, liên tục thúc ép: “Nếu chị không muốn bị phạt, tôi sẽ hướng dẫn chị làm thủ tục xác minh nhanh. Chị chỉ cần chuyển khoản phí kiểm tra để hệ thống đóng xác nhận.”</p>
+      <p>Chị A mở tài khoản nhưng trong thẻ không đủ tiền. Lập tức, người kia tiếp tục “chỉ dẫn”: “Không sao, chị vay tạm ngân hàng online đi cho nhanh. Tôi gửi chị link nè, chỉ cần bấm vô là vay được 25 triệu. Lãi suất thấp lắm, xử lý 5 phút.” Không kịp suy nghĩ, chị A nhấn vào đường link vay tiền. Trang web hiện lên rất giống ngân hàng thật, có logo, số hợp đồng, thậm chí chữ ký điện tử. Vì đang hoảng loạn, chị nhập toàn bộ thông tin cá nhân, rồi chuẩn bị bấm xác nhận vay.</p>
+      <p>Đúng lúc đó, cô đồng nghiệp đi ngang thấy chị ngồi quá lâu, mặt tái và tay run run nên bước đến hỏi: “Chị làm gì mà căng thẳng vậy?” Nghe chị A kể lại, cô lập tức hiểu đó là lừa đảo chiếm đoạt tài sản. Cô giật lại điện thoại, tắt trang web giả và yêu cầu chị A không chuyển bất kỳ đồng nào, nhưng chị A đã vay tiền trên một app ngân hàng vay 25 triệu với lãi suất siêu cao. Hên chỉ một click bấm vào màn hình nữa thôi là, chị A đã: Chuyển tiền cho kẻ lừa đảo. Nhờ có người can thiệp kịp thời, chị A may mắn không mất tiền. Nhưng chị phải gánh món lãi khổng lồ.</p>
+      <p>Sau sự việc, chị A nói trong run rẩy: “Lúc đầu tôi tỉnh táo lắm… nhưng họ nói hàng cấm làm tôi sợ quá, mất hết lý trí.”</p>
+    </div>
+    <audio id="storyAudio" controls style="width:100%; margin-top:12px;">
+      <source src="voice1.mp3" type="audio/mpeg">
+      Trình duyệt không hỗ trợ audio.
+    </audio>
+    <div style="display:flex; gap:10px; margin-top:12px;">
+      <button class="smallBtn" id="storyOkBtn">Đã nghe xong — Qua câu hỏi</button>
+      <button class="smallBtn ghostBtn" id="storySkipBtn">Bỏ qua — Qua câu hỏi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Super quiz popup -->
+<div id="superQuizPopup" aria-hidden="true">
+  <div id="superQuizBox">
+    <h2>🧠🔥 5 Câu trắc nghiệm cấp độ SIÊU TỐI THƯỢNG</h2>
+    <div id="superQuizContent">
+      <!-- question/content injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Super quiz end popup with animated text (will play mp3) -->
+<div id="superQuizEnd" aria-hidden="true">
+  <div id="superQuizEndBox">
+    <h2>Kết thúc bài kiểm tra</h2>
+    <div class="animatedText" id="animatedText">Cảm ơn bạn đã hoàn thành! Hãy luôn cảnh giác và chia sẻ kiến thức này với người thân.</div>
+    <audio id="endAudio" style="display:none;">
+      <source src="voice1.mp3" type="audio/mpeg">
+    </audio>
+    <div style="display:flex; justify-content:center; margin-top:12px;">
+      <button class="smallBtn" onclick="closeSuperQuizEnd()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Wire up interception of Hoạt động 3 final question ---
+// Keep reference to original checkAnswer if exists
+const originalCheckAnswer = window.checkAnswer || null;
+
+// Super-quiz data (using the 4 questions provided in the user's text)
+let correctAnswers = 0;
+let quizStartTime = Date.now();
+const superQuiz = [
+  {
+    q: "1. Trong chuỗi diễn biến, đâu là điểm cho thấy kẻ lừa đảo không chỉ lợi dụng nỗi sợ của chị A, mà còn tạo ra một khuôn khổ nhận thức mới, khiến chị A đánh giá sai bản chất của sự việc?",
+    options: ["A. Sử dụng từ khóa 'hàng cấm' để tạo sợ hãi", "B. Ép thời gian bằng cách gọi liên tục", "C. Chuyển vai từ shipper → người hỗ trợ pháp lý mà không cần chứng minh", "D. Đưa link vay tiền với giao diện ngân hàng thật"],
+    correct: 2 // index 2 = C
+  },
+  {
+    q: "2. Ở góc độ nhận thức sai lệch (cognitive distortion), chị A mắc phải lỗi nào khiến bản thân không còn giữ được tiêu chí kiểm chứng thông tin?",
+    options: ["A. Catastrophizing (phóng đại hậu quả)", "B. Selective attention (chú ý chọn lọc về phía rủi ro)", "C. External validation trap (phụ thuộc hướng dẫn bên ngoài để quyết định)", "D. Confirmation bias (thiên kiến xác nhận)"],
+    correct: 2 // C
+  },
+  {
+    q: "3. Chi tiết nào cho thấy kẻ lừa đảo đã cố tình tạo 'paradox lựa chọn', khiến mọi đường chị A chọn đều dẫn đến kết quả có lợi cho tội phạm?",
+    options: ["A. 'Không nhận hàng thì chị chịu trách nhiệm.'", "B. 'Chỉ cần chuyển phí để xác minh.'", "C. 'Không đủ tiền thì vay ngân hàng online đi cho nhanh.'", "D. 'Trang web giống hệt ngân hàng thật.'"],
+    correct: 0 // A
+  },
+  {
+    q: "4. Phân tích theo mô hình tấn công tâm lý 'tầng áp lực kép', câu nói nào là sự kết hợp hoàn hảo nhất của đe dọa + giải pháp, khiến nạn nhân bị cuốn vào guồng?",
+    options: ["A. 'Trong kiện có hàng cấm, chị ký là chịu trách nhiệm.'", "B. 'Không muốn bị phạt thì tôi hướng dẫn thủ tục xác minh nhanh.'", "C. 'Tài khoản không đủ à? Vậy chị vay ngân hàng online đi cho lẹ.'", "D. 'Trang này xử lý nhanh lắm, 5 phút là xong.'"],
+    correct: 1 // B
+  },
+  {
+    q: "5. Chi tiết nào cho thấy chị A không còn hành động dựa trên thông tin khách quan mà dựa trên “áp lực khung cảnh” (contextual compulsion)?",
+    options: [
+      "A. Vào website giả mạo",
+      "B. Nhập thông tin cá nhân",
+      "C. Không đọc lãi suất nhưng vẫn bấm vay",
+      "D. Chuẩn bị chuyển tiền dù biết mình không đặt hàng"
+    ],
+    correct: 2 // index 2 = C
+  }
+];
+
+let superIndex = 0;
+
+function renderSuperQuestion(){
+  const box = document.getElementById('superQuizContent');
+  box.innerHTML = '';
+  if(superIndex >= superQuiz.length){
+    // finished
+    document.getElementById('superQuizPopup').style.display = 'none';
+    showSuperQuizEnd();
+    return;
+  }
+  const item = superQuiz[superIndex];
+  const qEl = document.createElement('div');
+  qEl.className = 'q';
+  qEl.textContent = item.q;
+  box.appendChild(qEl);
+  const opts = document.createElement('div');
+  opts.className = 'options';
+  item.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.onclick = () => {
+      if(i === item.correct){
+        correctAnswers++;
+
+        try { document.getElementById('correctSound').currentTime = 0; document.getElementById('correctSound').play(); } catch(e){}
+        alert('Chính xác!');
+        superIndex++;
+        renderSuperQuestion();
+      } else {
+        try { document.getElementById('wrongSound').currentTime = 0; document.getElementById('wrongSound').play(); } catch(e){}
+        alert('Sai rồi, thử lại nhé.');
+      }
+    };
+    opts.appendChild(btn);
+  });
+  box.appendChild(opts);
+}
+
+function showSuperQuiz(){
+  superIndex = 0;
+  document.getElementById('superQuizPopup').style.display = 'flex';
+  renderSuperQuestion();
+}
+
+function showSuperQuizEnd(){
+    const totalTime = Math.floor((Date.now() - quizStartTime)/1000);
+    const score = (correctAnswers * 100) - totalTime;
+    alert(`Bạn đúng ${correctAnswers} câu trong ${totalTime} giây.
+Điểm: ${score}`);
+
+  document.getElementById('superQuizEnd').style.display = 'flex';
+  // play end audio and animate text (simple fade in)
+  const endAudio = document.getElementById('endAudio');
+  try { endAudio.currentTime = 0; endAudio.play().catch(()=>{}); } catch(e){}
+  const t = document.getElementById('animatedText');
+  t.style.opacity = 0;
+  setTimeout(()=> t.style.transition = 'opacity 0.8s', 50);
+  setTimeout(()=> t.style.opacity = 1, 150);
+}
+
+function closeSuperQuizEnd(){
+  document.getElementById('superQuizEnd').style.display = 'none';
+  // continue with original outro if available
+  if(typeof originalShowOutro === 'function') originalShowOutro();
+  else document.getElementById('outroScreen').style.display = 'flex';
+}
+
+// Show poster congrats overlay (called when user answers Q4 correctly in activity3)
+function showPosterCongrats(){
+  // hide activity3 quiz
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('poster').style.display = 'block';
+  document.getElementById('posterCongratsOverlay').style.display = 'flex';
+}
+
+// Close poster congrats
+function closePosterCongrats(){
+  document.getElementById('posterCongratsOverlay').style.display = 'none';
+  // show poster and resume normal flow (poster already displayed)
+  document.getElementById('poster').style.display = 'block';
+  // Optionally show confirm directly
+}
+
+// Hook buttons
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'pcContinueBtn'){
+    document.getElementById('posterCongratsOverlay').style.display = 'none';
+    document.getElementById('confirmStoryOverlay').style.display = 'flex';
+  }
+  if(e.target && e.target.id === 'agreeStoryBtn'){
+    document.getElementById('confirmStoryOverlay').style.display = 'none';
+    document.getElementById('storyOverlay').style.display = 'flex';
+    // autoplay audio if possible
+    try { const a = document.getElementById('storyAudio'); a.currentTime = 0; a.play().catch(()=>{}); } catch(e){}
+    // when audio ends, after 3s go to super quiz
+    const a = document.getElementById('storyAudio');
+    if(a){
+      a.onended = function(){
+        setTimeout(()=>{
+          document.getElementById('storyOverlay').style.display = 'none';
+          showSuperQuiz();
+        }, 3000);
+      };
+    }
+  }
+  if(e.target && e.target.id === 'skipStoryBtn'){
+    document.getElementById('confirmStoryOverlay').style.display = 'none';
+    showSuperQuiz();
+  }
+  if(e.target && e.target.id === 'storyOkBtn'){
+    // user clicked "Đã nghe xong" button -> wait 3s then show super quiz
+    try { document.getElementById('storyAudio').pause(); } catch(e){}
+    document.getElementById('storyOverlay').style.display = 'none';
+    setTimeout(()=> showSuperQuiz(), 3000);
+  }
+  if(e.target && e.target.id === 'storySkipBtn'){
+    document.getElementById('storyOverlay').style.display = 'none';
+    showSuperQuiz();
+  }
+});
+
+// Override activity3 checkAnswer to intercept Q4 (index 3) correct answer
+if(typeof window.checkAnswer === 'function'){
+  const orig = window.checkAnswer.bind(window);
+  window.checkAnswer = function(selected){
+    try {
+      // current and quizData are globals in original script
+      if(typeof current !== 'undefined' && typeof quizData !== 'undefined'){
+        // If this is the 4th question (index 3) and answer is correct -> show poster congrats flow
+        if(current === 3 && selected === quizData[current].answer){
+          // play correct sound
+          try { document.getElementById('correctSound').currentTime = 0; document.getElementById('correctSound').play(); } catch(e){}
+          // Show poster congrats overlay instead of normal flow
+          showPosterCongrats();
+          // increment current to mark question answered (so resume state consistent)
+          current++;
+          return;
+        }
+      }
+    } catch(e){ console.error(e); }
+    // fallback to original behavior
+    return orig(selected);
+  };
+} else {
+  // if checkAnswer not found, create a safe stub (unlikely)
+  window.checkAnswer = function(selected){
+    console.warn('checkAnswer not found - interaction fallback');
+  };
+}
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+<!-- END: Poster congrats + story + super-quiz -->
+
+
+<script>
+// === Story Highlight Sync ===
+const storyTimings = [
+  {start:0, end:13.5},
+  {start:13.5, end:32.8},
+  {start:32.8, end:70},
+  {start:70, end:105},
+  {start:105, end:142},
+  {start:142, end:151}
+];
+
+const storyAudio = document.getElementById('storyAudio');
+const storyParas = Array.from(document.querySelectorAll('#storyText p'));
+
+function updateHighlight(){
+  const t = storyAudio.currentTime;
+  storyParas.forEach((p,i)=>{
+    const seg = storyTimings[i];
+    if(seg && t>=seg.start && t<seg.end){
+      p.style.background = 'rgba(255,255,0,0.3)';
+      p.style.transition = '0.3s';
+    } else {
+      p.style.background = 'transparent';
+    }
+  });
+}
+
+storyAudio.addEventListener('timeupdate', updateHighlight);
+
+// Popup animations
+document.querySelectorAll('#posterCongrats,#confirmStory,#storyBox,#superQuizBox').forEach(el=>{
+  el.style.transform='scale(0.85)';
+  el.style.opacity='0';
+  el.style.transition='all 0.35s ease';
+  const obs=new MutationObserver(()=>{
+    if(getComputedStyle(el.parentElement).display!=='none'){
+      requestAnimationFrame(()=>{
+        el.style.transform='scale(1)';
+        el.style.opacity='1';
+      });
+    }
+  });
+  obs.observe(el.parentElement,{attributes:true,attributeFilter:['style']});
+});
+
+// Darker overlays
+document.querySelectorAll('#posterCongratsOverlay,#confirmStoryOverlay,#storyOverlay,#superQuizPopup,#superQuizEnd')
+  .forEach(el=>el.style.background='rgba(0,0,0,0.75)');
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// -- Ensure story audio uses relative path so it loads when opening file locally --
+(function(){
+  const audioEl = document.querySelector('#storyAudio source');
+  if(audioEl && audioEl.getAttribute('src').startsWith('/mnt/data/')) {
+    audioEl.setAttribute('src', 'voice1.mp3');
+    // reload parent audio element if present
+    const parent = document.getElementById('storyAudio');
+    if(parent){ parent.load(); }
+  }
+})();
+
+// -- Hide poster when overlays show, restore when all overlays hidden --
+(function(){
+  const posterEl = document.getElementById('poster');
+  const overlays = [
+    document.getElementById('posterCongratsOverlay'),
+    document.getElementById('confirmStoryOverlay'),
+    document.getElementById('storyOverlay'),
+    document.getElementById('superQuizPopup'),
+    document.getElementById('superQuizEnd')
+  ].filter(Boolean);
+
+  function anyOverlayVisible(){
+    return overlays.some(o => o && getComputedStyle(o).display !== 'none');
+  }
+
+  // Observe changes to style/display of each overlay and hide/show poster accordingly
+  overlays.forEach(o=>{
+    if(!o) return;
+    const obs = new MutationObserver(()=>{
+      try{
+        if(anyOverlayVisible()){
+          if(posterEl) posterEl.style.display = 'none';
+        } else {
+          if(posterEl) posterEl.style.display = 'block';
+        }
+      }catch(e){}
+    });
+    obs.observe(o, { attributes: true, attributeFilter: ['style', 'class'] });
+  });
+
+  // Also intercept functions that show overlays via code paths (safer)
+  const origShowPosterCongrats = window.showPosterCongrats;
+  window.showPosterCongrats = function(){
+    if(posterEl) posterEl.style.display='none';
+    if(typeof origShowPosterCongrats === 'function') origShowPosterCongrats();
+  };
+
+  // When story overlay is shown through direct style changes, ensure audio plays
+  const storyOverlay = document.getElementById('storyOverlay');
+  const storyAudio = document.getElementById('storyAudio');
+  if(storyOverlay){
+    const obs2 = new MutationObserver(()=>{
+      if(getComputedStyle(storyOverlay).display !== 'none'){
+        try{
+          if(posterEl) posterEl.style.display='none';
+          // attempt to play audio
+          if(storyAudio){
+            storyAudio.currentTime = 0;
+            const p = storyAudio.play();
+            if(p && typeof p.catch === 'function'){ p.catch(()=>{}); }
+          }
+        }catch(e){}
+      }
+    });
+    obs2.observe(storyOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+  }
+
+  // Buttons that close story overlay should restore poster when closed (safety)
+  ['storyOkBtn','storySkipBtn','pcContinueBtn'].forEach(id=>{
+    const btn = document.getElementById(id);
+    if(btn){
+      btn.addEventListener('click', ()=>{
+        setTimeout(()=>{ if(posterEl) posterEl.style.display='block'; }, 250);
+      });
+    }
+  });
+})();
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// --- Auto pause/resume background music when story popup opens/closes ---
+(function(){
+  const storyOverlay = document.getElementById('storyOverlay');
+  const bg = document.getElementById('bgMusic');
+  if(!storyOverlay || !bg) return;
+
+  const obs = new MutationObserver(()=>{
+    const visible = getComputedStyle(storyOverlay).display !== 'none';
+    if(visible){
+      try{ bg.pause(); }catch(e){}
+    } else {
+      try{ bg.play(); }catch(e){}
+    }
+  });
+  obs.observe(storyOverlay, { attributes:true, attributeFilter:['style','class'] });
+})();
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// FIX 1 — Tắt hoàn toàn poster nền khi đang ở Hoạt động 3
+(function(){
+    const poster = document.getElementById("poster");
+
+    const hidePosterWhenQuizRunning = () => {
+        if (typeof current !== "undefined" && current < 4) {
+            poster.style.display = "none";
+        }
+    };
+
+    setInterval(hidePosterWhenQuizRunning, 300);
+})();
+
+// FIX 2 — Xóa hiệu ứng sọc đằng sau popup/story
+document.body.style.background = "#6bd5ff";
+document.body.style.overflow = "hidden";
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// FIX chuẩn: Khi popup story/confirm/superquiz mở → ẩn poster ở sau
+(function(){
+    const overlays = [
+        "confirmStoryOverlay",
+        "storyOverlay",
+        "superQuizPopup",
+        "superQuizEnd"
+    ];
+
+    function hidePosterBehind() {
+        const posterImgs = document.querySelectorAll('#posterCongrats img, #poster img');
+        const someOverlayOpen = overlays.some(id => {
+            const el = document.getElementById(id);
+            return el && getComputedStyle(el).display !== "none";
+        });
+
+        posterImgs.forEach(img => {
+            img.style.visibility = someOverlayOpen ? "hidden" : "visible";
+        });
+    }
+
+    setInterval(hidePosterBehind, 200);
+})();
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// === FIX 1: TẮT HOÀN TOÀN TỰ PHÁT NHẠC Ở ĐOẠN CUỐI ===
+document.addEventListener("DOMContentLoaded", ()=>{
+    const endAudio = document.getElementById("endAudio");
+    if(endAudio){
+        endAudio.autoplay = false;
+        endAudio.pause();
+        endAudio.play = ()=>{}; 
+    }
+});
+if(document.getElementById("storyAudio")){
+    document.getElementById("storyAudio").onended = null;
+}
+
+// === FIX 2: Làm highlight chữ vàng chạy mượt ===
+(function(){
+    const storyAudio = document.getElementById("storyAudio");
+    const paras = Array.from(document.querySelectorAll("#storyText p"));
+    const timings = window.storyTimings || [];
+
+    function updateFast(){
+        const t = storyAudio.currentTime;
+        paras.forEach((p,i)=>{
+            const seg = timings[i];
+            if(seg && t >= seg.start && t < seg.end){
+                p.style.background = "rgba(255,255,0,0.3)";
+            } else {
+                p.style.background = "transparent";
+            }
+        });
+    }
+
+    if(storyAudio){
+        setInterval(updateFast, 80); 
+    }
+})();
+
+// === FIX 3: Thêm CHÂN cho các TÒA THÁP, không sửa game ===
+(function(){
+    const area = document.getElementById("gameArea");
+    if(area){
+        const towers = document.querySelectorAll(".tower");
+        towers.forEach(t=>{
+            const base = document.createElement("div");
+            base.style.width = "100%";
+            base.style.height = "20px";
+            base.style.background = "rgba(0,0,0,0.25)";
+            base.style.borderRadius = "0 0 12px 12px";
+            base.style.marginTop = "8px";
+            t.appendChild(base);
+        });
+    }
+})();
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// Disable yellow highlight in story
+(function(){
+    const storyAudio = document.getElementById("storyAudio");
+    const paras = document.querySelectorAll("#storyText p");
+    paras.forEach(p => p.style.background = "transparent");
+    if (storyAudio){ storyAudio.ontimeupdate = null; }
+    if (window.storyHighlightInterval){ clearInterval(window.storyHighlightInterval); }
+    window.updateHighlight = function(){};
+})();
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<style>
+body {
+    background-attachment: fixed !important;
+    background-position: center bottom !important;
+}
+</style>
+
+
+
+
+
+<script>
+// Fully disable highlight
+window.updateHighlight = function(){};
+document.querySelectorAll("#storyText p").forEach(p=> p.style.background = "transparent");
+if (window.storyHighlightInterval) clearInterval(window.storyHighlightInterval);
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// Stop story audio when skipping
+document.addEventListener("DOMContentLoaded", ()=>{
+  const a=document.getElementById("storyAudio");
+  const ids=["skipStoryBtn","storySkipBtn"];
+  ids.forEach(id=>{
+    const b=document.getElementById(id);
+    if(b){
+      b.addEventListener("click", ()=>{
+        if(a){ a.pause(); a.currentTime=0; }
+      });
+    }
+  });
+});
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<style>
+#storyText p {
+    background: transparent !important;
+}
+</style>
+
+<script>
+// Hard-disable highlight
+window.updateHighlight = function(){};
+if (window.storyHighlightInterval) clearInterval(window.storyHighlightInterval);
+
+// Remove any background color that may be applied later
+document.addEventListener("DOMContentLoaded", ()=>{
+    document.querySelectorAll("#storyText p").forEach(p=>{
+        p.style.background = "transparent";
+    });
+});
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<!-- FIREBASE LEADERBOARD -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } 
+    from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBp-d-t6eQGvXTehgoPD-h9x8B1yUg2Lc",
+    authDomain: "an-toan-internet.firebaseapp.com",
+    projectId: "an-toan-internet",
+    storageBucket: "an-toan-internet.appspot.com",
+    messagingSenderId: "32947390909",
+    appId: "1:32947390909:web:71ec5d85e0b0cef78d4a5f",
+    measurementId: "G-X7HLNTRBZG"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.saveResult = async function(name, cls, school, correct, time){
+    await addDoc(collection(db, "leaderboard"), {
+      name, cls, school, correct, time,
+      created: Date.now()
+    });
+  };
+
+  window.loadLeaderboard = async function(){
+    const q = query(
+      collection(db, "leaderboard"),
+      orderBy("correct", "desc"),
+      orderBy("time", "asc"),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    let html = "";
+    snap.forEach(doc=>{
+      const d = doc.data();
+      
+let medal = "";
+if (html === "") medal = "🥇";
+else if (!html.includes("🥇")) medal = "🥇";
+else if (!html.includes("🥈")) medal = "🥈";
+else if (!html.includes("🥉")) medal = "🥉";
+
+html += `<tr>
+  <td class='medal'>${medal}</td>
+
+        <td>${d.name}</td>
+        <td>${d.cls}</td>
+        <td>${d.school}</td>
+        <td>${d.correct}</td>
+        <td>${d.time}s</td>
+      </tr>`;
+    });
+    const body = document.getElementById("leaderboardBody");
+    if(body) body.innerHTML = html;
+  };
+
+  window.loadMyRank = async function(){
+    const q = query(
+      collection(db, "leaderboard"),
+      where("name", "==", window.playerInfo.name),
+      where("cls", "==", window.playerInfo.cls),
+      where("school", "==", window.playerInfo.school),
+      orderBy("created", "desc"),
+      limit(1)
+    );
+
+    const snap = await getDocs(q);
+    let htmlRow = "";
+    snap.forEach(doc => {
+      const d = doc.data();
+      htmlRow += `
+        <tr>
+          <td>🏅</td>
+          <td>${d.name}</td>
+          <td>${d.cls}</td>
+          <td>${d.school}</td>
+          <td>${d.correct}</td>
+          <td>${d.time}s</td>
+        </tr>
+      `;
+    });
+
+    document.getElementById("leaderboardBody").innerHTML = htmlRow;
+    document.getElementById("leaderboard").style.display = "block";
+  };
+
+
+function showTop50(){
+ document.getElementById("leaderboard").style.display="block";
+ if(window.loadLeaderboard) loadLeaderboard();
+}
+
+function computeScore(correct, time){
+ return correct*100 - time;
+}
+
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+<!-- LEADERBOARD TABLE -->
+<div id="leaderboard" style="display:none" style="margin-top:30px;">
+  <h2>Bảng xếp hạng TOP 50</h2>
+  <table border="1" width="100%">
+    <thead>
+      <tr>
+        <th>Hạng</th><th>Tên</th>
+        <th>Lớp</th>
+        <th>Trường</th>
+        <th>Điểm</th>
+        <th>Thời gian</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody"></tbody>
+  </table>
+</div>
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { 
+    getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit 
+  } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBp-d-t6eQGvXTehgoPD-h9x8B1yUg2Lc",
+    authDomain: "an-toan-internet.firebaseapp.com",
+    projectId: "an-toan-internet",
+    storageBucket: "an-toan-internet.appspot.com",
+    messagingSenderId: "32947390909",
+    appId: "1:32947390909:web:71ec5d85e0b0cef78d4a5f",
+    measurementId: "G-X7HLNTRBZG"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.saveResult = async function(player){
+    await addDoc(collection(db,"leaderboard"), player);
+  };
+
+  window.loadLeaderboard = async function(){
+    const q = query(collection(db,"leaderboard"),
+      orderBy("correct","desc"),
+      orderBy("time","asc"),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    let rows="";
+    snap.forEach(d=>{
+      const x=d.data();
+      rows += `<tr><td>${x.name}</td><td>${x.class}</td><td>${x.school}</td><td>${x.correct}</td><td>${x.time}</td></tr>`;
+    });
+    const body=document.getElementById("leaderboardBody");
+    if(body) body.innerHTML=rows;
+  };
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<!-- Leaderboard Section -->
+<div id="leaderboardBox" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+background:white; padding:20px; border-radius:12px; width:90%; max-width:400px; box-shadow:0 0 20px rgba(0,0,0,0.3); z-index:99999;">
+  <h3 style="margin-top:0; text-align:center;">🏆 TOP 50</h3>
+  <table style="width:100%; border-collapse:collapse; font-size:14px;">
+    <thead>
+      <tr>
+        <th>Tên</th><th>Lớp</th><th>Trường</th><th>Đúng</th><th>Thời gian</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody"></tbody>
+  </table>
+  <button onclick="document.getElementById('leaderboardBox').style.display='none'"
+    style="margin-top:15px; width:100%; padding:8px; border:none; border-radius:8px; background:#007bff; color:white;">
+    Đóng
+  </button>
+</div>
+
+<button id="openLeaderboardBtn"
+ onclick="document.getElementById('leaderboardBox').style.display='block'; loadLeaderboard();"
+ style="position:fixed; bottom:20px; right:20px; padding:10px 14px; background:#ff9800; color:#fff; border:none; border-radius:50%; font-size:14px; z-index:9999;">
+ 🏆
+</button>
+
+
+<script>
+(function(){
+  const target = document.getElementById('outroScreen');
+  if(!target) return;
+  const obs = new MutationObserver(()=>{
+    const st = window.getComputedStyle(target).display;
+    if(st !== 'none'){
+      try{
+        window.endTime = Date.now();
+        window.totalTime = Math.floor((window.endTime - window.startTime)/1000);
+        if(window.correctAnswers!==undefined){
+          window.playerScore = window.correctAnswers - window.totalTime;
+        }
+        if(window.submitScoreIfBetter) window.submitScoreIfBetter();
+      }catch(e){ console.error(e); }
+    }
+  });
+  obs.observe(target, { attributes:true, attributeFilter:['style'] });
+})();
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<div id="scorePopup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); 
+    z-index:99999; justify-content:center; align-items:center;">
+  <div style="background:white; padding:25px; border-radius:14px; width:320px; text-align:center;
+    box-shadow:0 8px 25px rgba(0,0,0,0.35); font-family:Arial;">
+      <h2>🎉 Điểm của bạn</h2>
+      <p id="scorePopupText" style="font-size:18px; margin-top:10px;"></p>
+      <button onclick="document.getElementById('scorePopup').style.display='none';"
+        style="margin-top:15px; padding:10px 20px; border:none; background:#00a8ff; color:white;
+        border-radius:8px; cursor:pointer;">Đóng</button>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  
+function showScorePopup(){
+    const result = computeScore();
+    const score = result.score;
+    const time = result.timePenalty;
+    const correct = window.correctCount || 0;
+    const wrong = window.wrongCount || 0;
+
+    const html = `
+        <strong>Điểm tổng: ${score}</strong><br>
+        ⏱ Thời gian: ${time} giây<br>
+        ✔ Đúng: ${correct} / 22<br>
+        ❌ Sai: ${wrong} câu
+    `;
+    document.getElementById('scorePopupText').innerHTML = html;
+    document.getElementById('scorePopup').style.display = 'flex';
+}
+ câu trong ${time} giây.<br><b>Điểm: ${score}</b>`;
+      document.getElementById('scorePopupText').innerHTML = txt;
+      document.getElementById('scorePopup').style.display='flex';
+    }catch(e){ console.error(e); }
+  }
+
+  const target = document.getElementById('outroScreen');
+  if(!target) return;
+
+  const obs2 = new MutationObserver(()=>{
+    const st = window.getComputedStyle(target).display;
+    if(st !== 'none'){
+      setTimeout(showScorePopup, 800);
+    }
+  });
+  obs2.observe(target, { attributes:true, attributeFilter:['style'] });
+})();
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+
+<script>
+// global correctAnswers
+window.correctAnswers = 0;
+
+// delegate for any button or div with correct:true in dataset or JS object
+document.addEventListener('click', function(e){
+    const el = e.target.closest('[data-correct]');
+    if(el){
+        if(el.dataset.correct === "true"){
+            window.correctAnswers++;
+        }
+    }
+});
+
+function computeScore(){
+    const totalQuestions = 22;
+    const base = totalQuestions * 100;
+    const timePenalty = Math.floor((Date.now() - window.startTime)/1000);
+    const wrongPenalty = window.wrongCount * 100;
+    let score = base - timePenalty - wrongPenalty;
+    if(score<0) score=0;
+    return {score, timePenalty};
+}
+
+</script>
+
+</body>
+</html>
